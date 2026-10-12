@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Нэвтрэлтийн лаб</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 0 16px;
+    }
+
+    input {
+      padding: 8px;
+      margin: 4px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin: 4px 6px 4px 0;
+      cursor: pointer;
+    }
+
+    pre {
+      background: #f2f2f2;
+      padding: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+<body>
+  <h1>Нэвтрэлтийн лаб</h1>
+
+  <h2>Бүртгүүлэх</h2>
+  <form id="reg">
+    <input id="regEmail" type="email"
+      placeholder="И-мэйл" required>
+    <input id="regPass" type="password"
+      placeholder="Нууц үг" required>
+    <button type="submit">Бүртгүүлэх</button>
+  </form>
+
+  <h2>Нэвтрэх</h2>
+  <form id="login">
+    <input id="logEmail" type="email"
+      placeholder="И-мэйл" required>
+    <input id="logPass" type="password"
+      placeholder="Нууц үг" required>
+    <button type="submit">Нэвтрэх</button>
+  </form>
+
+  <h2>Хамгаалагдсан хэсэг</h2>
+  <button id="profileBtn">Профайл харах</button>
+  <button id="adminBtn">Админ хэсэг</button>
+  <button id="logoutBtn">Гарах</button>
+
+  <p id="statusEl"></p>
+  <pre id="outEl"></pre>
+
+  <script>
+    let token = null;
+
+    const statusEl = document.getElementById("statusEl");
+    const outEl = document.getElementById("outEl");
+
+    function show(label, data) {
+      statusEl.textContent = label;
+      outEl.textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function send(url, body) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      return {
+        status: res.status,
+        data: await res.json()
+      };
+    }
+
+    async function getProtected(url, label) {
+      const headers = token
+        ? { Authorization: "Bearer " + token }
+        : {};
+
+      const res = await fetch(url, { headers });
+      show(label + ": " + res.status, await res.json());
+    }
+
+    document.getElementById("reg").addEventListener(
+      "submit", async (e) => {
+        e.preventDefault();
+
+        try {
+          const r = await send("/api/register", {
+            email: document.getElementById("regEmail").value,
+            password: document.getElementById("regPass").value
+          });
+
+          show("Бүртгэл: " + r.status, r.data);
+        } catch (err) {
+          show("Алдаа", { error: err.message });
+        }
+      }
+    );
+
+    document.getElementById("login").addEventListener(
+      "submit", async (e) => {
+        e.preventDefault();
+
+        try {
+          const r = await send("/api/login", {
+            email: document.getElementById("logEmail").value,
+            password: document.getElementById("logPass").value
+          });
+
+          if (r.status === 200) {
+            token = r.data.token;
+            show("Нэвтэрлээ: 200", {
+              message: "Токен санах ойд хадгалагдлаа"
+            });
+          } else {
+            show("Нэвтрэх: " + r.status, r.data);
+          }
+        } catch (err) {
+          show("Алдаа", { error: err.message });
+        }
+      }
+    );
+
+    document.getElementById("profileBtn").addEventListener(
+      "click", () => getProtected("/api/profile", "Профайл")
+    );
+
+    document.getElementById("adminBtn").addEventListener(
+      "click", () => getProtected("/api/admin", "Админ")
+    );
+
+    document.getElementById("logoutBtn").addEventListener(
+      "click", () => {
+        token = null;
+        show("Гарлаа", {});
+      }
+    );
+  </script>
+</body>
+</html>
